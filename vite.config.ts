@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
         remarkPlugins: [remarkGfm]
       }),
     ],
+    base: './',
     publicDir: isLib ? false : undefined,
     build: isLib ? {
       lib: {
