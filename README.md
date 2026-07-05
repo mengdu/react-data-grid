@@ -10,14 +10,14 @@ A high-performance React data grid component powered by
 ## Install
 
 ```bash
-# TODO
+# TODO Not yet completed
 ```
 
 ## Quick Start
 
 ```tsx
-import { DataGrid } from 'react-data-grid'
-import 'react-data-grid/dist/index.css'
+import { DataGrid } from 'TODO'
+import 'TODO/dist/index.css'
 
 export function Example() {
   const rows = 10000
