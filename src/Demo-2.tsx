@@ -1,7 +1,7 @@
 import { faker } from '@faker-js/faker'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { DataGrid, type Instance } from './DataGrid'
-import { CaretSortIcon, EnterFullScreenIcon, ExitFullScreenIcon, TriangleDownIcon, TriangleUpIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon, CaretSortIcon, ChevronRightIcon, ChevronUpIcon, Cross2Icon, EnterFullScreenIcon, ExitFullScreenIcon, TriangleDownIcon, TriangleUpIcon } from '@radix-ui/react-icons'
 import { downloadCsv } from './exportCsv'
 
 type Align = 'left' | 'right' | 'center'
@@ -310,33 +310,6 @@ function ProgressBar(props: {value: string}) {
   )
 }
 
-function getSmoothPath(points: {x: number; y: number}[]) {
-  if (points.length < 2) return ""
-
-  const path = [];
-
-  for (let i = 0; i < points.length; i++) {
-    const p0 = points[i - 1] || points[i];
-    const p1 = points[i];
-    const p2 = points[i + 1] || points[i];
-    const p3 = points[i + 2] || p2;
-
-    if (i === 0) {
-      path.push(`M ${p1.x} ${p1.y}`);
-    }
-
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-    path.push(`C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`);
-  }
-
-  return path.join(" ");
-}
-
 const LineChart = (prpos: {
   color: string
   data: number[]
@@ -370,6 +343,34 @@ const LineChart = (prpos: {
     }
   }
   const color = COLOR[prpos.color as keyof typeof COLOR]
+
+  function getSmoothPath(points: {x: number; y: number}[]) {
+    if (points.length < 2) return ""
+
+    const path = [];
+
+    for (let i = 0; i < points.length; i++) {
+      const p0 = points[i - 1] || points[i];
+      const p1 = points[i];
+      const p2 = points[i + 1] || points[i];
+      const p3 = points[i + 2] || p2;
+
+      if (i === 0) {
+        path.push(`M ${p1.x} ${p1.y}`);
+      }
+
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+      path.push(`C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`);
+    }
+
+    return path.join(" ");
+  }
+
   const { linePath, areaPath } = useMemo(() => {
     if (!prpos.data.length) return { linePath: "", areaPath: "" };
 
@@ -435,6 +436,7 @@ export default function FakerDataGridDemo() {
   const [columnCount, setColumnCount] = useState(20)
   const [seed, setSeed] = useState(20260704)
   const [sort, setSort] = useState<SortState>(null)
+  const [pos, setPos] = useState<[number, number] | null>(null)
   const columns = useMemo(() => createColumns(columnCount, seed), [columnCount, seed])
   const sourceRows = useMemo(() => createRows(rowCount, columns, seed), [columns, rowCount, seed])
   const rows = useMemo(() => sortRows(sourceRows, columns, sort), [columns, sort, sourceRows])
@@ -575,115 +577,135 @@ export default function FakerDataGridDemo() {
         </div>
       </div>
 
-      <DataGrid
-        ref={ref}
-        className="min-h-0 flex-1 overflow-hidden"
-        row={{
-          count: rows.length,
-          estimateSize: () => 30,
-          overscan: 8,
-        }}
-        column={{
-          count: columns.length,
-          estimateSize: index => columns[index]?.width ?? 120,
-          overscan: 3,
-        }}
-        render={(rowIndex, columnIndex, type) => {
-          const column = columns[columnIndex]
+      <div className="flex-1 overflow-hidden flex flex-row">
+        <DataGrid
+          ref={ref}
+          className="min-h-0 flex-1 overflow-hidden"
+          row={{
+            count: rows.length,
+            estimateSize: () => 30,
+            overscan: 8,
+          }}
+          column={{
+            count: columns.length,
+            estimateSize: index => columns[index]?.width ?? 120,
+            overscan: 3,
+          }}
+          render={(rowIndex, columnIndex, type) => {
+            const column = columns[columnIndex]
 
-          if (type === 'column') {
-            if (!column) return null
-            const sortable = isSortableColumn(column)
-            const sortDirection = sort?.columnKey === column.key ? sort.direction : null
-            const SortIcon = sortDirection === 'asc'
-              ? TriangleUpIcon
-              : sortDirection === 'desc'
-                ? TriangleDownIcon
-                : CaretSortIcon
+            if (type === 'column') {
+              if (!column) return null
+              const sortable = isSortableColumn(column)
+              const sortDirection = sort?.columnKey === column.key ? sort.direction : null
+              const SortIcon = sortDirection === 'asc'
+                ? TriangleUpIcon
+                : sortDirection === 'desc'
+                  ? TriangleDownIcon
+                  : CaretSortIcon
 
-            if (sortable) {
+              if (sortable) {
+                return (
+                  <button
+                    className="flex h-full w-full cursor-pointer items-center justify-between gap-2 overflow-hidden px-3 text-left text-xs font-semibold uppercase"
+                    onClick={e => {
+                      e.stopPropagation()
+                      toggleSort(column)
+                    }}
+                  
+                    title={`Sort by ${column.title}`}
+                    type="button"
+                  >
+                    <span className="min-w-0 overflow-hidden text-ellipsis text-nowrap">{column.title}</span>
+                    <SortIcon className={sortDirection ? 'shrink-0 text-slate-900' : 'shrink-0 text-slate-300'} />
+                  </button>
+                )
+              }
+
               return (
-                <button
-                  className="flex h-full w-full cursor-pointer items-center justify-between gap-2 overflow-hidden px-3 text-left text-xs font-semibold uppercase"
-                  onClick={e => {
-                    e.stopPropagation()
-                    toggleSort(column)
-                  }}
-                 
-                  title={`Sort by ${column.title}`}
-                  type="button"
-                >
-                  <span className="min-w-0 overflow-hidden text-ellipsis text-nowrap">{column.title}</span>
-                  <SortIcon className={sortDirection ? 'shrink-0 text-slate-900' : 'shrink-0 text-slate-300'} />
-                </button>
+                <div className="w-full overflow-hidden text-ellipsis text-nowrap px-3 text-xs font-semibold uppercase">
+                  {column.title}
+                </div>
               )
             }
 
+            if (type === 'row') {
+              return <span className="px-2 text-sm tabular-nums">{rowIndex + 1}</span>
+            }
+
+            const value = rows[rowIndex]?.[columnIndex]
+            if (!column || !value) return null
+            const textValue = cellToText(value)
+
+            if (column.kind === 'status') {
+              return (
+                <div className="flex w-full items-center justify-center px-2">
+                  <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${statusClassName(textValue)}`}>
+                    {textValue}
+                  </span>
+                </div>
+              )
+            }
+
+            if (column.kind === 'avatar') {
+              return (
+                <div>
+                  <img src={textValue} alt="avatar" className="w-6 h-6 rounded-sm" />
+                </div>
+              )
+            }
+
+            if (column.kind === 'rating') {
+              return <PerfStars value={Number(textValue)} />
+            }
+
+            if (column.kind === 'progress') {
+              return <ProgressBar value={textValue} />
+            }
+
+            if (column.kind === 'trend') {
+              if (!isTrendValue(value)) return null
+              return <LineChart color={value.color} data={value.data} />
+            }
+
+            if (column.kind === 'change') {
+              return <span className={`${textValue.startsWith('-') ? 'text-green-500' : 'text-red-400'}`}>{textValue}</span>
+            }
+
             return (
-              <div className="w-full overflow-hidden text-ellipsis text-nowrap px-3 text-xs font-semibold uppercase">
-                {column.title}
+              <div
+                className={`w-full overflow-hidden text-ellipsis text-nowrap px-3 text-sm ${
+                  column.align === 'right'
+                    ? 'text-right tabular-nums'
+                    : column.align === 'center'
+                      ? 'text-center'
+                      : 'text-left'
+                }`}
+                onClick={() => {
+                  setPos([columnIndex, rowIndex])
+                }}
+              >
+                {textValue}
               </div>
             )
-          }
-
-          if (type === 'row') {
-            return <span className="px-2 text-xs tabular-nums text-slate-500">{rowIndex + 1}</span>
-          }
-
-          const value = rows[rowIndex]?.[columnIndex]
-          if (!column || !value) return null
-          const textValue = cellToText(value)
-
-          if (column.kind === 'status') {
-            return (
-              <div className="flex w-full items-center justify-center px-2">
-                <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${statusClassName(textValue)}`}>
-                  {textValue}
-                </span>
+          }}
+        />
+        {pos && (
+          <div className="shrink-0 w-[20%] border-l border-slate-200">
+            <div className="p-1.5 flex gap-0.5 items-center">
+              <div className="flex-1 flex gap-0.5 items-center text-gray-600">
+                <span>selection</span>
+                <ChevronRightIcon className="text-gray-400" />
+                <span className="flex-1 overflow-hidden text-ellipsis text-nowrap">{columns[pos[0]].title}</span>
               </div>
-            )
-          }
-
-          if (column.kind === 'avatar') {
-            return (
               <div>
-                <img src={textValue} alt="avatar" className="w-6 h-6 rounded-sm" />
+                <button className="p-0.5 cursor-pointer w-5 h-5 rounded-sm hover:bg-gray-200" onClick={() => {setPos(null)}}><Cross2Icon /></button>
               </div>
-            )
-          }
-
-          if (column.kind === 'rating') {
-            return <PerfStars value={Number(textValue)} />
-          }
-
-          if (column.kind === 'progress') {
-            return <ProgressBar value={textValue} />
-          }
-
-          if (column.kind === 'trend') {
-            if (!isTrendValue(value)) return null
-            return <LineChart color={value.color} data={value.data} />
-          }
-
-          if (column.kind === 'change') {
-            return <span className={`${textValue.startsWith('-') ? 'text-green-500' : 'text-red-400'}`}>{textValue}</span>
-          }
-
-          return (
-            <div
-              className={`w-full overflow-hidden text-ellipsis text-nowrap px-3 text-sm ${
-                column.align === 'right'
-                  ? 'text-right tabular-nums'
-                  : column.align === 'center'
-                    ? 'text-center'
-                    : 'text-left'
-              }`}
-            >
-              {textValue}
             </div>
-          )
-        }}
-      />
+            <div className="p-1.5 break-all">{rows[pos[1]]?.[pos[0]] as string}</div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

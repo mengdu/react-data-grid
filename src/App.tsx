@@ -6,7 +6,7 @@ function App() {
   return (
     <div className="w-250 mx-auto">
       <div>
-        <h1 className="text-9xl">React Data Gird</h1>
+        <h1 className="text-9xl">React Data Grid</h1>
         <p className="text-5xl mt-3">A high-performance React data grid component.</p>
         <p className="text-sm text-gray-500 mt-3">The high-performance virtual list is implemented based on <a className="text-blue-600" href="https://tanstack.com/virtual" target="_blank">@tanstack/react-virtual</a></p>
       </div>
