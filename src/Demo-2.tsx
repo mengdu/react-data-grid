@@ -1,7 +1,7 @@
 import { faker } from '@faker-js/faker'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { DataGrid, type Instance } from './DataGrid'
-import { ArrowRightIcon, CaretSortIcon, ChevronRightIcon, ChevronUpIcon, Cross2Icon, EnterFullScreenIcon, ExitFullScreenIcon, TriangleDownIcon, TriangleUpIcon } from '@radix-ui/react-icons'
+import { CaretSortIcon, ChevronRightIcon, Cross2Icon, EnterFullScreenIcon, ExitFullScreenIcon, TriangleDownIcon, TriangleUpIcon } from '@radix-ui/react-icons'
 import { downloadCsv } from './exportCsv'
 
 type Align = 'left' | 'right' | 'center'
@@ -35,6 +35,10 @@ type CellKind =
   | 'avatar'
   | 'change'
   | 'trend'
+  | 'intraday'
+  | 'kline'
+  | 'volume'
+  | 'macd'
 
 type Column = {
   key: string
@@ -49,7 +53,47 @@ type TrendValue = {
   data: number[]
 }
 
-type CellValue = string | TrendValue
+type KLineItem = {
+  open: number
+  close: number
+  high: number
+  low: number
+}
+
+type KLineValue = {
+  data: KLineItem[]
+}
+
+type IntradayItem = {
+  price: number
+  average: number
+}
+
+type IntradayValue = {
+  previousClose: number
+  data: IntradayItem[]
+}
+
+type MacdItem = {
+  dif: number
+  dea: number
+  macd: number
+}
+
+type MacdValue = {
+  data: MacdItem[]
+}
+
+type VolumeItem = {
+  value: number
+  rising: boolean
+}
+
+type VolumeValue = {
+  data: VolumeItem[]
+}
+
+type CellValue = string | TrendValue | IntradayValue | KLineValue | VolumeValue | MacdValue
 
 const statusValues = ['Active', 'Trial', 'Paused', 'Churned']
 const plans = ['Starter', 'Growth', 'Business', 'Enterprise']
@@ -67,6 +111,10 @@ const baseColumnBlueprints: Array<Omit<Column, 'key'>> = [
   { title: 'Status', width: 112, kind: 'status' },
   { title: 'Change', width: 92, kind: 'change', align: 'right' },
   { title: 'Trend', width: 100, kind: 'trend', align: 'center' },
+  { title: 'Intraday', width: 132, kind: 'intraday', align: 'center' },
+  { title: 'K Line', width: 132, kind: 'kline', align: 'center' },
+  { title: 'Volume', width: 132, kind: 'volume', align: 'center' },
+  { title: 'MACD', width: 132, kind: 'macd', align: 'center' },
   { title: 'Orders', width: 92, kind: 'orders', align: 'right' },
   { title: 'Revenue', width: 120, kind: 'revenue', align: 'right' },
   { title: 'Last seen', width: 140, kind: 'date' },
@@ -90,6 +138,10 @@ const generatedKinds: CellKind[] = [
   'avatar',
   'change',
   'trend',
+  'intraday',
+  'kline',
+  'volume',
+  'macd',
 ]
 
 const columnCountOptions = [5, 10, 20, 50, 100]
@@ -135,7 +187,79 @@ function widthFromKind(kind: CellKind) {
 function alignFromKind(kind: CellKind): Align | undefined {
   if (kind === 'orders' || kind === 'progress' || kind === 'rating' || kind === 'revenue') return 'right'
   if (kind === 'email' || kind === 'company' || kind === 'name' || kind === 'product' || kind === 'jobTitle') return 'left'
+  if (kind === 'trend' || kind === 'intraday' || kind === 'kline' || kind === 'volume' || kind === 'macd') return 'center'
   return undefined
+}
+
+function createIntradayData(length = 80): IntradayValue {
+  const previousClose = faker.number.float({ min: 80, max: 130, fractionDigits: 2 })
+  let price = previousClose + faker.number.float({ min: -1.5, max: 1.5, fractionDigits: 2 })
+  let total = 0
+
+  const data = Array.from({ length }, (_, index) => {
+    const wave = Math.sin(index / 9) * 0.5
+    price += faker.number.float({ min: -0.45, max: 0.45, fractionDigits: 2 }) + wave * 0.08
+    total += price
+
+    return {
+      price: Number(price.toFixed(2)),
+      average: Number((total / (index + 1)).toFixed(2)),
+    }
+  })
+
+  return {
+    previousClose: Number(previousClose.toFixed(2)),
+    data,
+  }
+}
+
+function createKLineData(length = 16): KLineItem[] {
+  let lastClose = faker.number.float({ min: 70, max: 120, fractionDigits: 2 })
+
+  return Array.from({ length }, () => {
+    const open = lastClose + faker.number.float({ min: -3, max: 3, fractionDigits: 2 })
+    const close = open + faker.number.float({ min: -5, max: 5, fractionDigits: 2 })
+    const high = Math.max(open, close) + faker.number.float({ min: 0.5, max: 4.5, fractionDigits: 2 })
+    const low = Math.min(open, close) - faker.number.float({ min: 0.5, max: 4.5, fractionDigits: 2 })
+
+    lastClose = close
+
+    return {
+      open: Number(open.toFixed(2)),
+      close: Number(close.toFixed(2)),
+      high: Number(high.toFixed(2)),
+      low: Number(low.toFixed(2)),
+    }
+  })
+}
+
+function createMacdData(length = 24): MacdItem[] {
+  let dif = faker.number.float({ min: -1.8, max: 1.8, fractionDigits: 2 })
+  let dea = dif * 0.65
+
+  return Array.from({ length }, () => {
+    dif += faker.number.float({ min: -0.8, max: 0.8, fractionDigits: 2 })
+    dea = dea * 0.72 + dif * 0.28
+    const macd = (dif - dea) * 2
+
+    return {
+      dif: Number(dif.toFixed(2)),
+      dea: Number(dea.toFixed(2)),
+      macd: Number(macd.toFixed(2)),
+    }
+  })
+}
+
+function createVolumeData(length = 20): VolumeItem[] {
+  return Array.from({ length }, (_, index) => {
+    const wave = Math.sin(index / 2.2) * 0.28 + 1
+    const value = faker.number.int({ min: 8000, max: 88000 }) * wave
+
+    return {
+      value: Math.round(value),
+      rising: faker.datatype.boolean(),
+    }
+  })
 }
 
 function createColumns(count: number, seed: number) {
@@ -194,6 +318,16 @@ function createCellValue(kind: CellKind, rowIndex: number) {
       Math.floor(Math.random() * 100)
     )
   }
+  if (kind === 'intraday') return createIntradayData()
+  if (kind === 'kline') return {
+    data: createKLineData()
+  }
+  if (kind === 'volume') return {
+    data: createVolumeData()
+  }
+  if (kind === 'macd') return {
+    data: createMacdData()
+  }
   return faker.commerce.productName()
 }
 
@@ -206,12 +340,32 @@ function createRows(count: number, columns: Column[], seed: number) {
 }
 
 function isTrendValue(value: CellValue | undefined): value is TrendValue {
-  return typeof value === 'object' && value !== null && 'data' in value
+  return typeof value === 'object' && value !== null && 'color' in value
+}
+
+function isKLineValue(value: CellValue | undefined): value is KLineValue {
+  return typeof value === 'object' && value !== null && 'data' in value && value.data.some(item => typeof item === 'object' && item !== null && 'open' in item)
+}
+
+function isIntradayValue(value: CellValue | undefined): value is IntradayValue {
+  return typeof value === 'object' && value !== null && 'previousClose' in value && 'data' in value && value.data.some(item => typeof item === 'object' && item !== null && 'price' in item)
+}
+
+function isMacdValue(value: CellValue | undefined): value is MacdValue {
+  return typeof value === 'object' && value !== null && 'data' in value && value.data.some(item => typeof item === 'object' && item !== null && 'macd' in item)
+}
+
+function isVolumeValue(value: CellValue | undefined): value is VolumeValue {
+  return typeof value === 'object' && value !== null && 'data' in value && value.data.some(item => typeof item === 'object' && item !== null && 'value' in item && 'rising' in item)
 }
 
 function cellToText(value: CellValue | undefined) {
   if (!value) return ''
   if (isTrendValue(value)) return value.data.join(' ')
+  if (isIntradayValue(value)) return value.data.map(item => `${item.price}/${item.average}`).join(' ')
+  if (isKLineValue(value)) return value.data.map(item => `${item.open}/${item.high}/${item.low}/${item.close}`).join(' ')
+  if (isVolumeValue(value)) return value.data.map(item => `${item.value}/${item.rising ? 'up' : 'down'}`).join(' ')
+  if (isMacdValue(value)) return value.data.map(item => `${item.dif}/${item.dea}/${item.macd}`).join(' ')
   return value
 }
 
@@ -228,7 +382,7 @@ function getExportCellText(columns: Column[], rows: CellValue[][], rowIndex: num
 }
 
 function isSortableColumn(column: Column) {
-  return !['avatar', 'progress', 'trend'].includes(column.kind)
+  return !['avatar', 'progress', 'trend', 'intraday', 'kline', 'volume', 'macd'].includes(column.kind)
 }
 
 function numericValue(value: string) {
@@ -429,6 +583,295 @@ const LineChart = (prpos: {
   )
 }
 
+const KLineChart = (props: {
+  data: KLineItem[]
+}) => {
+  const width = 150
+  const height = 34
+  const paddingX = 7
+  const paddingY = 4
+  const candleGap = 2
+  const risingColor = '#ef4444'
+  const fallingColor = '#22c55e'
+
+  const { candles } = useMemo(() => {
+    if (!props.data.length) return { candles: [] }
+
+    const max = Math.max(...props.data.map(item => item.high))
+    const min = Math.min(...props.data.map(item => item.low))
+    const scaleY = (value: number) => {
+      return height - paddingY - ((value - min) / (max - min || 1)) * (height - paddingY * 2)
+    }
+    const slotWidth = (width - paddingX * 2) / props.data.length
+    const bodyWidth = Math.max(2, Math.min(6, slotWidth - candleGap))
+
+    return {
+      candles: props.data.map((item, index) => {
+        const centerX = paddingX + slotWidth * index + slotWidth / 2
+        const openY = scaleY(item.open)
+        const closeY = scaleY(item.close)
+        const highY = scaleY(item.high)
+        const lowY = scaleY(item.low)
+        const bodyTop = Math.min(openY, closeY)
+        const bodyHeight = Math.max(1, Math.abs(closeY - openY))
+        const rising = item.close >= item.open
+
+        return {
+          key: index,
+          centerX,
+          bodyX: centerX - bodyWidth / 2,
+          bodyTop,
+          bodyWidth,
+          bodyHeight,
+          highY,
+          lowY,
+          color: rising ? risingColor : fallingColor,
+        }
+      }),
+    }
+  }, [props.data])
+
+  return (
+    <div className="h-full w-full px-1 py-0.5">
+      <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+        {candles.map(item => (
+          <g key={item.key}>
+            <line
+              x1={item.centerX}
+              x2={item.centerX}
+              y1={item.highY}
+              y2={item.lowY}
+              stroke={item.color}
+              strokeWidth="1"
+              strokeLinecap="round"
+            />
+            <rect
+              x={item.bodyX}
+              y={item.bodyTop}
+              width={item.bodyWidth}
+              height={item.bodyHeight}
+              rx="0.75"
+              fill={item.color}
+            />
+          </g>
+        ))}
+      </svg>
+    </div>
+  )
+}
+
+const IntradayChart = (props: {
+  previousClose: number
+  data: IntradayItem[]
+}) => {
+  const gradientId = useId()
+  const width = 150
+  const height = 34
+  const paddingX = 7
+  const paddingY = 4
+  const priceColor = '#2563eb'
+  const averageColor = '#f59e0b'
+  const baselineColor = '#cbd5e1'
+
+  function getLinePath(points: {x: number; y: number}[]) {
+    if (!points.length) return ''
+    return points.map((point, index) => {
+      return `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
+    }).join(' ')
+  }
+
+  const { pricePath, averagePath, areaPath, baselineY } = useMemo(() => {
+    if (!props.data.length) {
+      return {
+        pricePath: '',
+        averagePath: '',
+        areaPath: '',
+        baselineY: height / 2,
+      }
+    }
+
+    const values = props.data.flatMap(item => [item.price, item.average])
+    const maxDistance = Math.max(...values.map(value => Math.abs(value - props.previousClose)), 0.01)
+    const max = props.previousClose + maxDistance
+    const min = props.previousClose - maxDistance
+    const scaleY = (value: number) => {
+      return height - paddingY - ((value - min) / (max - min || 1)) * (height - paddingY * 2)
+    }
+    const pointX = (index: number) => {
+      if (props.data.length === 1) return width / 2
+      return paddingX + (index / (props.data.length - 1)) * (width - paddingX * 2)
+    }
+    const pricePoints = props.data.map((item, index) => ({ x: pointX(index), y: scaleY(item.price) }))
+    const averagePoints = props.data.map((item, index) => ({ x: pointX(index), y: scaleY(item.average) }))
+    const pricePath = getLinePath(pricePoints)
+    const lastPoint = pricePoints[pricePoints.length - 1]
+    const firstPoint = pricePoints[0]
+
+    return {
+      pricePath,
+      averagePath: getLinePath(averagePoints),
+      baselineY: scaleY(props.previousClose),
+      areaPath: pricePath
+        ? `${pricePath} L ${lastPoint.x} ${height - paddingY} L ${firstPoint.x} ${height - paddingY} Z`
+        : '',
+    }
+  }, [props.data, props.previousClose])
+
+  return (
+    <div className="h-full w-full px-1 py-0.5">
+      <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+        <defs>
+          <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={priceColor} stopOpacity="0.18" />
+            <stop offset="100%" stopColor={priceColor} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <line
+          x1={paddingX}
+          x2={width - paddingX}
+          y1={baselineY}
+          y2={baselineY}
+          stroke={baselineColor}
+          strokeDasharray="3 3"
+          strokeWidth="1"
+        />
+        <path d={areaPath} fill={`url(#${gradientId})`} />
+        <path d={pricePath} fill="none" stroke={priceColor} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={averagePath} fill="none" stroke={averageColor} strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  )
+}
+
+const MacdChart = (props: {
+  data: MacdItem[]
+}) => {
+  const width = 150
+  const height = 34
+  const paddingX = 7
+  const paddingY = 4
+  const histogramGap = 2
+  const difColor = '#3b82f6'
+  const deaColor = '#f59e0b'
+  const positiveColor = '#ef4444'
+  const negativeColor = '#22c55e'
+
+  function getLinePath(points: {x: number; y: number}[]) {
+    if (!points.length) return ''
+    return points.map((point, index) => {
+      return `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
+    }).join(' ')
+  }
+
+  const { bars, zeroY, difPath, deaPath } = useMemo(() => {
+    if (!props.data.length) return { bars: [], zeroY: height / 2, difPath: '', deaPath: '' }
+
+    const values = props.data.flatMap(item => [item.dif, item.dea, item.macd])
+    const max = Math.max(...values, 0)
+    const min = Math.min(...values, 0)
+    const scaleY = (value: number) => {
+      return height - paddingY - ((value - min) / (max - min || 1)) * (height - paddingY * 2)
+    }
+    const slotWidth = (width - paddingX * 2) / props.data.length
+    const barWidth = Math.max(2, Math.min(5, slotWidth - histogramGap))
+    const zeroY = scaleY(0)
+    const pointX = (index: number) => paddingX + slotWidth * index + slotWidth / 2
+
+    return {
+      zeroY,
+      difPath: getLinePath(props.data.map((item, index) => ({ x: pointX(index), y: scaleY(item.dif) }))),
+      deaPath: getLinePath(props.data.map((item, index) => ({ x: pointX(index), y: scaleY(item.dea) }))),
+      bars: props.data.map((item, index) => {
+        const y = scaleY(item.macd)
+        return {
+          key: index,
+          x: pointX(index) - barWidth / 2,
+          y: Math.min(y, zeroY),
+          width: barWidth,
+          height: Math.max(1, Math.abs(zeroY - y)),
+          color: item.macd >= 0 ? positiveColor : negativeColor,
+        }
+      }),
+    }
+  }, [props.data])
+
+  return (
+    <div className="h-full w-full px-1 py-0.5">
+      <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+        <line x1={paddingX} x2={width - paddingX} y1={zeroY} y2={zeroY} stroke="#e5e7eb" strokeWidth="1" />
+        {bars.map(item => (
+          <rect
+            key={item.key}
+            x={item.x}
+            y={item.y}
+            width={item.width}
+            height={item.height}
+            rx="0.75"
+            fill={item.color}
+            opacity="0.8"
+          />
+        ))}
+        <path d={difPath} fill="none" stroke={difColor} strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={deaPath} fill="none" stroke={deaColor} strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  )
+}
+
+const VolumeChart = (props: {
+  data: VolumeItem[]
+}) => {
+  const width = 150
+  const height = 34
+  const paddingX = 7
+  const paddingY = 4
+  const barGap = 2
+  const risingColor = '#ef4444'
+  const fallingColor = '#22c55e'
+
+  const bars = useMemo(() => {
+    if (!props.data.length) return []
+
+    const max = Math.max(...props.data.map(item => item.value), 1)
+    const slotWidth = (width - paddingX * 2) / props.data.length
+    const barWidth = Math.max(2, Math.min(5, slotWidth - barGap))
+
+    return props.data.map((item, index) => {
+      const barHeight = Math.max(1, (item.value / max) * (height - paddingY * 2))
+      const x = paddingX + slotWidth * index + slotWidth / 2 - barWidth / 2
+
+      return {
+        key: index,
+        x,
+        y: height - paddingY - barHeight,
+        width: barWidth,
+        height: barHeight,
+        color: item.rising ? risingColor : fallingColor,
+      }
+    })
+  }, [props.data])
+
+  return (
+    <div className="h-full w-full px-1 py-0.5">
+      <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+        <line x1={paddingX} x2={width - paddingX} y1={height - paddingY} y2={height - paddingY} stroke="#e5e7eb" strokeWidth="1" />
+        {bars.map(item => (
+          <rect
+            key={item.key}
+            x={item.x}
+            y={item.y}
+            width={item.width}
+            height={item.height}
+            rx="0.75"
+            fill={item.color}
+            opacity="0.78"
+          />
+        ))}
+      </svg>
+    </div>
+  )
+}
+
 export default function FakerDataGridDemo() {
   const ref = useRef<Instance>(null)
   const [fullScreen, setFullScreen] = useState(false)
@@ -591,6 +1034,7 @@ export default function FakerDataGridDemo() {
             estimateSize: index => columns[index]?.width ?? 120,
             overscan: 3,
           }}
+          resizeable={{column: true, row: true}}
           render={(rowIndex, columnIndex, type) => {
             const column = columns[columnIndex]
 
@@ -668,6 +1112,26 @@ export default function FakerDataGridDemo() {
               return <LineChart color={value.color} data={value.data} />
             }
 
+            if (column.kind === 'intraday') {
+              if (!isIntradayValue(value)) return null
+              return <IntradayChart previousClose={value.previousClose} data={value.data} />
+            }
+
+            if (column.kind === 'kline') {
+              if (!isKLineValue(value)) return null
+              return <KLineChart data={value.data} />
+            }
+
+            if (column.kind === 'volume') {
+              if (!isVolumeValue(value)) return null
+              return <VolumeChart data={value.data} />
+            }
+
+            if (column.kind === 'macd') {
+              if (!isMacdValue(value)) return null
+              return <MacdChart data={value.data} />
+            }
+
             if (column.kind === 'change') {
               return <span className={`${textValue.startsWith('-') ? 'text-green-500' : 'text-red-400'}`}>{textValue}</span>
             }
@@ -702,7 +1166,7 @@ export default function FakerDataGridDemo() {
                 <button className="p-0.5 cursor-pointer w-5 h-5 rounded-sm hover:bg-gray-200" onClick={() => {setPos(null)}}><Cross2Icon /></button>
               </div>
             </div>
-            <div className="p-1.5 break-all">{rows[pos[1]]?.[pos[0]] as string}</div>
+            <div className="p-1.5 break-all">{cellToText(rows[pos[1]]?.[pos[0]])}</div>
           </div>
         )}
       </div>

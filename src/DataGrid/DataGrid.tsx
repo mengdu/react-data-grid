@@ -30,7 +30,12 @@ export interface DataGridProps {
   className?: string
   row: BaseVirtualizerOptions
   column: BaseVirtualizerOptions
+  resizeable?: {
+    column?: boolean
+    row?: boolean
+  }
   render: RenderHandler
+  corner?: ReactNode
   borderWidth?: number
   exnted?: ReactNode
 }
@@ -154,6 +159,8 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
     const offset = Number(rowResizer.current!.dataset.offset) || 0
     const index = Number(rowResizer.current!.dataset.index) || 0
     const size = Number(rowResizer.current!.dataset.size) || 0
+    const defaultCursor = document.documentElement.style.cursor
+    document.documentElement.style.cursor = 'row-resize'
     const pointermove = (e: PointerEvent) => {
       let ox = e.clientY - sy
       ox = (size + ox) <= MIN_HEIGHT
@@ -166,6 +173,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
 
     const mouseup = () => {
       rowResizing.current = false
+      document.documentElement.style.cursor = defaultCursor
       window.removeEventListener('pointerup', mouseup, false)
       window.removeEventListener('pointermove', pointermove, false)
     }
@@ -223,16 +231,20 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
           setActived(false)
         }}
       >
-        <div className="data-grid-holder"
+        <div className="data-grid-corner"
           onClick={() => {
             setRange({x: 0, y: 0, w: width, h: height, tx: 0, ty: 0, bx: columnVirtualizer.options.count - 1, by: rowVirtualizer.options.count - 1})
           }}
-          ></div>
+          >
+          {props.corner}
+        </div>
         <div className={cls('data-grid-column-header', scrollOffset.oy && 'has-scroll')}>
-          <div className="column-resizer"
-            ref={columnResizer}
-            onPointerDown={handleColumnResize}
-          ></div>
+          {props.resizeable?.column && (
+            <div className="column-resizer"
+              ref={columnResizer}
+              onPointerDown={handleColumnResize}
+            ></div>
+          )}
           {columns.map((column) => (
             <div
               key={column.key}
@@ -264,7 +276,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
               }}
               onPointerEnter={() => {
                 if (!columnMouseDown.current && !columnResizing.current && columnResizer.current) {
-                  const offset = column.end - 5
+                  const offset = column.end
                   columnResizer.current.style.transform = `translateX(${offset}px)`
                   columnResizer.current.dataset.index = String(column.index)
                   columnResizer.current.dataset.offset = String(offset)
@@ -296,10 +308,12 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
         </div>
         <div className={cls('data-grid-row-header', scrollOffset.ox && 'has-scroll')}>
           {rows.length && <div className="row-header-width-hold">{props.render(rows[rows.length - 1].index, 0, 'row')}</div>}
-          <div className="row-resizer"
-            ref={rowResizer}
-            onPointerDown={handleRowResize}
-          ></div>
+          {props.resizeable?.row && (
+            <div className="row-resizer"
+              ref={rowResizer}
+              onPointerDown={handleRowResize}
+            ></div>
+          )}
           {rows.map((row) => (
             <div
               key={row.key}
@@ -334,7 +348,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
               }}
               onPointerEnter={() => {
                 if (!rowMouseDown.current && !rowResizing.current && rowResizer.current) {
-                  const offset = row.end - 5
+                  const offset = row.end
                   rowResizer.current.style.transform = `translateY(${offset}px)`
                   rowResizer.current.dataset.index = String(row.index)
                   rowResizer.current.dataset.offset = String(offset)
