@@ -1034,7 +1034,8 @@ export default function FakerDataGridDemo() {
             estimateSize: index => columns[index]?.width ?? 120,
             overscan: 3,
           }}
-          resizeable={{column: true, row: true}}
+          columnResize={() => [50, 200]}
+          rowResize
           render={(rowIndex, columnIndex, type) => {
             const column = columns[columnIndex]
 

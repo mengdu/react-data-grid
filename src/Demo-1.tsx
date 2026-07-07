@@ -177,7 +177,8 @@ export default function GridVirtualizerFixed() {
           count: columns,
           overscan: 5,
         }}
-        resizeable={{column: true, row: true}}
+        columnResize
+        rowResize
         borderWidth={borderWidth}
         render={(r, c, type) => {
           if (type === 'column') return cols[c]

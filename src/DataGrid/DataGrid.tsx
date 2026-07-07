@@ -21,6 +21,7 @@ export interface Range {
 }
 
 export type RenderHandler = (row: number, column: number, type: 'cell' | 'row' | 'column') => ReactNode
+type ResizeConfig = boolean | ((index: number) => [number, number])
 
 type BaseVirtualizerOptions = Omit<PartialKeys<ReactVirtualizerOptions<HTMLDivElement, Element>, "observeElementRect" | "observeElementOffset" | "scrollToFn">, 'getScrollElement' | 'estimateSize'> & {
   estimateSize?: (index: number) => number
@@ -30,10 +31,8 @@ export interface DataGridProps {
   className?: string
   row: BaseVirtualizerOptions
   column: BaseVirtualizerOptions
-  resizeable?: {
-    column?: boolean
-    row?: boolean
-  }
+  rowResize?: ResizeConfig
+  columnResize?: ResizeConfig
   render: RenderHandler
   corner?: ReactNode
   borderWidth?: number
@@ -52,14 +51,23 @@ export interface Instance {
 const MIN_WIDTH = 40
 const MIN_HEIGHT = 20
 
+function getResizeRange(config: ResizeConfig | undefined, index: number, fallbackMin: number): [number, number] | null {
+  if (!config) return null
+  if (config === true) return [fallbackMin, Number.POSITIVE_INFINITY]
+
+  const [min, max] = config(index)
+  const minSize = Number.isFinite(min) ? Math.max(0, min) : fallbackMin
+  const maxSize = Number.isFinite(max) ? Math.max(minSize, max) : Number.POSITIVE_INFINITY
+
+  return [minSize, maxSize]
+}
+
 export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) => {
   const columnMouseDown = useRef<boolean>(false)
   const rowMouseDown = useRef<boolean>(false)
   const cellMouseDown = useRef<boolean>(false)
   const columnResizing = useRef<boolean>(false)
-  const columnResizer = useRef<HTMLDivElement>(null)
   const rowResizing = useRef<boolean>(false)
-  const rowResizer = useRef<HTMLDivElement>(null)
   const [actived, setActived] = useState(false)
   const [scrollOffset, setScrollOffset] = useState({ox: false, oy: false})
   const [baseColumn, setBaseColumn] = useState<VirtualItem | null>(null)
@@ -120,24 +128,22 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
     setRange({x, y, w, h, tx, ty, bx, by})
   }
 
-  const handleColumnResize = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleColumnResize = (e: React.PointerEvent<HTMLDivElement>, col: VirtualItem) => {
+    const resizeRange = getResizeRange(props.columnResize, col.index, MIN_WIDTH)
+    if (!resizeRange) return
+
     setPos(null)
     setRange(null)
+    e.stopPropagation()
     columnResizing.current = true
     const sx = e.clientX
-    const offset = Number(columnResizer.current!.dataset.offset) || 0
-    const index = Number(columnResizer.current!.dataset.index) || 0
-    const size = Number(columnResizer.current!.dataset.size) || 0
+    const startSize = col.size - borderWidth
     const defaultCursor = document.documentElement.style.cursor
     document.documentElement.style.cursor = 'col-resize'
+
     const pointermove = (e: PointerEvent) => {
-      let ox = e.clientX - sx
-      ox = (size + ox) <= MIN_WIDTH
-        ? MIN_WIDTH - size
-        : ox
-      columnResizer.current!.style.transform = `translateX(${offset + ox}px)`
-      columnResizer.current!.dataset.offset = String(offset + ox)
-      columnVirtualizer.resizeItem(index, size + ox)
+      const nextSize = Math.min(Math.max(startSize + e.clientX - sx, resizeRange[0]), resizeRange[1])
+      columnVirtualizer.resizeItem(col.index, nextSize + borderWidth)
     }
 
     const mouseup = () => {
@@ -151,24 +157,22 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
     window.addEventListener('pointerup', mouseup, false)
   }
 
-  const handleRowResize = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleRowResize = (e: React.PointerEvent<HTMLDivElement>, row: VirtualItem) => {
+    const resizeRange = getResizeRange(props.rowResize, row.index, MIN_HEIGHT)
+    if (!resizeRange) return
+
+    e.stopPropagation()
     setPos(null)
     setRange(null)
     rowResizing.current = true
     const sy = e.clientY
-    const offset = Number(rowResizer.current!.dataset.offset) || 0
-    const index = Number(rowResizer.current!.dataset.index) || 0
-    const size = Number(rowResizer.current!.dataset.size) || 0
+    const startSize = row.size - borderWidth
     const defaultCursor = document.documentElement.style.cursor
     document.documentElement.style.cursor = 'row-resize'
+
     const pointermove = (e: PointerEvent) => {
-      let ox = e.clientY - sy
-      ox = (size + ox) <= MIN_HEIGHT
-        ? MIN_HEIGHT - size
-        : ox
-      rowResizer.current!.style.transform = `translateX(${offset + ox}px)`
-      rowResizer.current!.dataset.offset = String(offset + ox)
-      rowVirtualizer.resizeItem(index, size + ox)
+      const nextSize = Math.min(Math.max(startSize + e.clientY - sy, resizeRange[0]), resizeRange[1])
+      rowVirtualizer.resizeItem(row.index, nextSize + borderWidth)
     }
 
     const mouseup = () => {
@@ -239,12 +243,6 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
           {props.corner}
         </div>
         <div className={cls('data-grid-column-header', scrollOffset.oy && 'has-scroll')}>
-          {props.resizeable?.column && (
-            <div className="column-resizer"
-              ref={columnResizer}
-              onPointerDown={handleColumnResize}
-            ></div>
-          )}
           {columns.map((column) => (
             <div
               key={column.key}
@@ -275,13 +273,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
                 window.addEventListener('pointerup', mouseup, false)
               }}
               onPointerEnter={() => {
-                if (!columnMouseDown.current && !columnResizing.current && columnResizer.current) {
-                  const offset = column.end
-                  columnResizer.current.style.transform = `translateX(${offset}px)`
-                  columnResizer.current.dataset.index = String(column.index)
-                  columnResizer.current.dataset.offset = String(offset)
-                  columnResizer.current.dataset.size = String(column.size)
-                }
+                if (columnResizing.current) return
                 if (!columnMouseDown.current) return
                 if (!range) return
                 if (!baseColumn) return
@@ -303,17 +295,16 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
                   })
                 }
               }}
-              >{props.render(0, column.index, 'column')}</div>
+              >
+                {props.render(0, column.index, 'column')}
+                {props.columnResize && column.index !== columnVirtualizer.options.count - 1 && (
+                  <div className="column-resizer" onPointerDown={(e) => handleColumnResize(e, column)}></div>
+                )}
+            </div>
           ))}
         </div>
         <div className={cls('data-grid-row-header', scrollOffset.ox && 'has-scroll')}>
           {rows.length && <div className="row-header-width-hold">{props.render(rows[rows.length - 1].index, 0, 'row')}</div>}
-          {props.resizeable?.row && (
-            <div className="row-resizer"
-              ref={rowResizer}
-              onPointerDown={handleRowResize}
-            ></div>
-          )}
           {rows.map((row) => (
             <div
               key={row.key}
@@ -347,14 +338,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
                 window.addEventListener('pointerup', mouseup, false)
               }}
               onPointerEnter={() => {
-                if (!rowMouseDown.current && !rowResizing.current && rowResizer.current) {
-                  const offset = row.end
-                  rowResizer.current.style.transform = `translateY(${offset}px)`
-                  rowResizer.current.dataset.index = String(row.index)
-                  rowResizer.current.dataset.offset = String(offset)
-                  rowResizer.current.dataset.size = String(row.size)
-                }
-
+                if (rowResizing.current) return
                 if (!rowMouseDown.current) return
                 if (!range) return
                 if (!baseRow) return
@@ -376,13 +360,18 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
                   })
                 }
               }}
-            >{props.render(row.index, 0, 'row')}</div>
+            >
+              {props.render(row.index, 0, 'row')}
+              {props.rowResize && row.index !== rowVirtualizer.options.count - 1 && (
+                <div className="row-resizer" onPointerDown={(e) => handleRowResize(e, row)}></div>
+              )}
+            </div>
           ))}
         </div>
         <div className="data-grid-body"
           style={{
-            height: `${height}px`,
-            width: `${width}px`,
+            height: `${height + borderWidth}px`,
+            width: `${width + borderWidth}px`,
           }}
         >
           <div className="data-grid-helper">
