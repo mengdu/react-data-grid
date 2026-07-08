@@ -173,7 +173,20 @@ function titleFromKind(kind: CellKind, index: number) {
   return `Field ${index + 1}`
 }
 
-function widthFromKind(kind: CellKind) {
+const style = getComputedStyle(document.body)
+const canvas = document.createElement('canvas')
+const ctx = canvas.getContext('2d')
+if (ctx) {
+  ctx.font = [
+    style.fontStyle,
+    style.fontVariant,
+    style.fontWeight,
+    style.fontSize,
+    style.fontFamily
+  ].join(' ')
+}
+
+function widthFromKind(kind: CellKind, title: string) {
   if (kind === 'email') return 240
   if (kind === 'company' || kind === 'product') return 220
   if (kind === 'name' || kind === 'jobTitle') return 160
@@ -181,7 +194,7 @@ function widthFromKind(kind: CellKind) {
   if (kind === 'revenue' || kind === 'date') return 124
   if (kind === 'id' || kind === 'invoice' || kind === 'status') return 112
   if (kind === 'orders' || kind === 'progress' || kind === 'rating') return 96
-  return 120
+  return ctx?.measureText(title).width ?? title.length * 7
 }
 
 function alignFromKind(kind: CellKind): Align | undefined {
@@ -280,8 +293,8 @@ function createColumns(count: number, seed: number) {
 
     return {
       key: `col_${index}_${kind}`,
-      title: `${title} ${index + 1}`,
-      width: widthFromKind(kind),
+      title: title,
+      width: widthFromKind(kind, title) + 10 * 2 + 15,
       kind,
       align: alignFromKind(kind),
     }

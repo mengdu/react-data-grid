@@ -1,6 +1,5 @@
 import Demo1 from './Demo-1'
 import Demo2 from './Demo-2'
-import Guide from './Guide.mdx'
 
 function App() {
   return (
@@ -16,9 +15,7 @@ function App() {
       <div className="mt-10">
         <Demo1 />
       </div>
-      <div className="markdown-docs mt-10">
-        {/* <Readme /> */}
-        <Guide />
+      <div className="markdown-docs mt-30">
       </div>
     </div>
   )
