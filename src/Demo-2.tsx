@@ -917,6 +917,18 @@ export default function FakerDataGridDemo() {
     }
   }, [rows])
 
+  useEffect(() => {
+    if (!fullScreen) return
+
+    const previousOverflow = document.body.style.overflow
+    window.scrollTo({ top: 0, left: 0 })
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [fullScreen])
+
   const exportCsv = () => {
     downloadCsv(`faker-data-${rowCount}x${columnCount}.csv`, [
       columns.map(column => column.title),
@@ -1026,7 +1038,7 @@ export default function FakerDataGridDemo() {
           className="min-h-0 flex-1 overflow-hidden"
           row={{
             count: rows.length,
-            estimateSize: () => 30,
+            estimateSize: () => 25,
             overscan: 8,
           }}
           column={{
@@ -1075,7 +1087,7 @@ export default function FakerDataGridDemo() {
             }
 
             if (type === 'row') {
-              return <span className="px-2 text-sm tabular-nums">{rowIndex + 1}</span>
+              return <span className="px-1 text-sm tabular-nums">{rowIndex + 1}</span>
             }
 
             const value = rows[rowIndex]?.[columnIndex]
@@ -1156,7 +1168,7 @@ export default function FakerDataGridDemo() {
           }}
         />
         {pos && (
-          <div className="shrink-0 w-[20%] border-l border-slate-200">
+          <div className="shrink-0 w-[300px] border-l border-slate-200">
             <div className="p-1.5 flex gap-0.5 items-center">
               <div className="flex-1 flex gap-0.5 items-center text-gray-600">
                 <span>selection</span>

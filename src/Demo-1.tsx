@@ -63,6 +63,18 @@ export default function GridVirtualizerFixed() {
     }
   }, [data])
 
+  useEffect(() => {
+    if (!fullScreen) return
+
+    const previousOverflow = document.body.style.overflow
+    window.scrollTo({ top: 0, left: 0 })
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [fullScreen])
+
   const exportCsv = () => {
     downloadCsv(`sheet-${rows}x${columns}.csv`, [
       ['', ...cols],

@@ -4,7 +4,7 @@ import Guide from './Guide.mdx'
 
 function App() {
   return (
-    <div className="w-250 mx-auto">
+    <div className="max-w-250 mx-auto px-4">
       <div>
         <h1 className="text-9xl">React Data Grid</h1>
         <p className="text-5xl mt-3">A high-performance React data grid component.</p>
