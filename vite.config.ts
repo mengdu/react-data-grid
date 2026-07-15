@@ -15,7 +15,9 @@ export default defineConfig(({ mode }) => {
       react(),
       babel({ presets: [reactCompilerPreset()] }),
       tailwindcss(),
-      dts(),
+      isLib && dts({
+        tsconfigPath: './tsconfig.lib.json',
+      }),
       mdx({
         remarkPlugins: [remarkGfm]
       }),
