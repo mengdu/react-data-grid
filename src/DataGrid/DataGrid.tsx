@@ -413,6 +413,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
                 ((row.index + 1) % 2) === 0 ? 'even' : 'odd',
                 (row.index + 1) % 6 === 3 && 'nth6n-3',
                 (row.index + 1) % 6 === 0 && 'nth6n-6',
+                (pos && row.index === pos[1].index) && 'current-row'
               )}
               style={{
                 height: row.size - borderWidth + 'px',
@@ -426,6 +427,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
                     'data-grid-cell',
                     (row.index + 1) % 6 === 3 && 'nth6n-3',
                     (row.index + 1) % 6 === 0 && 'nth6n-6',
+                    (pos && column.index === pos[0].index) && 'current-column',
                   )}
                   style={{
                     width: column.size - borderWidth + 'px',

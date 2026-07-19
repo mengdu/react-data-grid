@@ -1076,19 +1076,21 @@ export default function FakerDataGridDemo() {
 
               if (sortable) {
                 return (
-                  <button
-                    className="flex h-full w-full cursor-pointer items-center justify-between gap-2 overflow-hidden px-3 text-left text-xs font-semibold uppercase"
-                    onClick={e => {
-                      e.stopPropagation()
-                      toggleSort(column)
-                    }}
-                  
+                  <div
+                    className="flex h-full w-full items-center justify-between gap-2 overflow-hidden px-3 text-left text-xs font-semibold uppercase"
                     title={`Sort by ${column.title}`}
-                    type="button"
                   >
                     <span className="min-w-0 overflow-hidden text-ellipsis text-nowrap">{column.title}</span>
-                    <SortIcon className={sortDirection ? 'shrink-0 text-slate-900' : 'shrink-0 text-slate-300'} />
-                  </button>
+                    <button className="cursor-pointer"
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => {
+                        e.stopPropagation()
+                        toggleSort(column)
+                      }}
+                    >
+                      <SortIcon className={sortDirection ? 'shrink-0 text-slate-900' : 'shrink-0 text-slate-300'} />
+                    </button>
+                  </div>
                 )
               }
 
