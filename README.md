@@ -1,7 +1,7 @@
 # React Data Grid
 
 A high-performance React data grid component powered by
-[`@tanstack/react-virtual`](https://tanstack.com/virtual). 
+[`@tanstack/react-virtual`](https://tanstack.com/virtual).
 
 ![preview](./preview.png)
 

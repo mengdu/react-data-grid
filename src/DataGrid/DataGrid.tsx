@@ -213,7 +213,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
     const onscroll = () => {
       const x = (parentRef.current?.scrollLeft || 0) > 0
       const y = (parentRef.current?.scrollTop || 0) > 0
-      if (scrollOffset.ox !== x || scrollOffset.oy || y) {
+      if (scrollOffset.ox !== x || scrollOffset.oy !== y) {
         setScrollOffset({ox: x, oy: y})
       }
     }
