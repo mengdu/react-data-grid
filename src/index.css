@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+:root {
+  --text: #232935;
+  --text-h: #08060d;
+  --bg: #fff;
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  --border-color: #E5E5E5;
+
+  font: 14px/145% var(--sans);
+  letter-spacing: 0.18px;
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-x: contain; /* 阻止页面退回 */
+  -webkit-overflow-scrolling: touch;
+}
+
+.select {
+  font-family: inherit;
+  font-size: 13px;
+  height: 26px;
+  padding: 3px 28px 3px 12px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  color: #374151;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' fill='none'%3E%3Cpath stroke='%23868686' stroke-linecap='round' stroke-linejoin='round' d='m1 .5 3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  cursor: pointer;
+}
+
+.markdown-docs {
+  color: #334155;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.markdown-docs > * + * {
+  margin-top: 2.5rem;
+}
+
+.markdown-docs h1,
+.markdown-docs h2,
+.markdown-docs h3,
+.markdown-docs h4 {
+  color: #0f172a;
+  font-family: var(--heading);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.markdown-docs h1 {
+  margin: 0 0 1.25rem;
+  font-size: 2.25rem;
+}
+
+.markdown-docs h2 {
+  margin: 2rem 0 0.85rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid #e5e7eb;
+  font-size: 1.55rem;
+}
+
+.markdown-docs h3 {
+  margin: 1.5rem 0 0.65rem;
+  font-size: 1.2rem;
+}
+
+.markdown-docs h4 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.markdown-docs p,
+.markdown-docs ul,
+.markdown-docs ol,
+.markdown-docs table,
+.markdown-docs pre,
+.markdown-docs blockquote {
+  margin: 0.85rem 0;
+}
+
+.markdown-docs a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.markdown-docs ul,
+.markdown-docs ol {
+  padding-left: 1.5rem;
+}
+
+.markdown-docs ul {
+  list-style: disc;
+}
+
+.markdown-docs ol {
+  list-style: decimal;
+}
+
+.markdown-docs li + li {
+  margin-top: 0.3rem;
+}
+
+.markdown-docs code {
+  border-radius: 4px;
+  background: #f1f5f9;
+  padding: 0.15rem 0.35rem;
+  color: #be123c;
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+.markdown-docs pre {
+  overflow: auto;
+  border-radius: 8px;
+  background: #0f172a;
+  padding: 1rem;
+  color: #e2e8f0;
+}
+
+.markdown-docs pre code {
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.92rem;
+}
+
+.markdown-docs table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.94rem;
+}
+
+.markdown-docs th,
+.markdown-docs td {
+  border: 1px solid #e5e7eb;
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-docs th {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 650;
+}
+
+.markdown-docs blockquote {
+  border-left: 4px solid #cbd5e1;
+  padding-left: 1rem;
+  color: #64748b;
+}
+
+.data-grid-cell.nth6n-3 {
+  background-color: var(--data-grid-cell-nth6n3-bg, #F5FAFF);
+}
+
+.data-grid-cell.nth6n-6 {
+  background-color: var(--data-grid-cell-nth6n6-bg, #F8F9F9);
+}
