@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { DataGrid, type Instance } from './DataGrid'
+import { DataGrid, type DataGridInstance } from './DataGrid'
 import { EnterFullScreenIcon, ExitFullScreenIcon } from '@radix-ui/react-icons'
 import { downloadCsv } from './exportCsv'
 
@@ -14,7 +14,7 @@ function genColumn(n: number) {
 }
 
 export default function GridVirtualizerFixed() {
-  const ref = useRef<Instance>(null)
+  const ref = useRef<DataGridInstance>(null)
   const [fullScreen, setFullScreen] = useState(false)
   const [rows, setRows] = useState(10000)
   const [columns, setColumns] = useState(100)
@@ -40,13 +40,13 @@ export default function GridVirtualizerFixed() {
 
   useEffect(() => {
     const handleCopy = (e: ClipboardEvent) => {
-      if (!ref.current?.range) return
+      if (!ref.current?.selection) return
       if (!ref.current.active()) return
       e.preventDefault()
       const arr: string[] = []
-      for (let i = ref.current.range.ty; i <= ref.current.range.by; i++) {
+      for (let i = ref.current.selection.ty; i <= ref.current.selection.by; i++) {
         const line = []
-        for (let j = ref.current.range.tx; j <= ref.current.range.bx; j++) {
+        for (let j = ref.current.selection.tx; j <= ref.current.selection.bx; j++) {
           line.push(data[i][j])
         }
         arr.push(line.join(' '))
@@ -125,6 +125,7 @@ export default function GridVirtualizerFixed() {
               onChange={e => setBorderWidth(Number(e.target.value))}
             >
               <option value="0">None</option>
+              <option value="0.5">0.5 Border</option>
               <option value="1">1 Border</option>
               <option value="2">2 Border</option>
               <option value="3">3 Border</option>

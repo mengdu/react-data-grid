@@ -5,11 +5,11 @@ function cls(...arr: any[]) {
   return arr.filter(Boolean).join(' ')
 }
 
-function inRange(a: number, b: number, x: number) {
+function inSelection(a: number, b: number, x: number) {
   return a <= x && x <= b
 }
 
-export interface Range {
+export interface SelectionRange {
   x: number
   y: number
   w: number
@@ -33,15 +33,17 @@ export interface DataGridProps {
   column: BaseVirtualizerOptions
   rowResize?: ResizeConfig
   columnResize?: ResizeConfig
+  hideRowHeader?: boolean
+  hideColumnHeader?: boolean
   render: RenderHandler
   corner?: ReactNode
   borderWidth?: number
   extra?: ReactNode
 }
 
-export interface Instance {
+export interface DataGridInstance {
   el?: HTMLDivElement | null
-  range: Range | null
+  selection: SelectionRange | null
   row: Virtualizer<HTMLDivElement, Element>
   column: Virtualizer<HTMLDivElement, Element>
   active: () => boolean
@@ -63,7 +65,7 @@ function getResizeRange(config: ResizeConfig | undefined, index: number, fallbac
   return [minSize, maxSize]
 }
 
-export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) => {
+export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInstance>) => {
   const columnMouseDown = useRef<boolean>(false)
   const rowMouseDown = useRef<boolean>(false)
   const cellMouseDown = useRef<boolean>(false)
@@ -71,16 +73,21 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
   const rowResizing = useRef<boolean>(false)
   const pointerCleanupRef = useRef<(() => void) | null>(null)
   const [actived, setActived] = useState(false)
+  const [selecting, setSelecting] = useState(false)
+  const [resizeRowIndex, setResizeRowIndex] = useState<number | null>(null)
+  const [resizeColumnIndex, setResizeColumnIndex] = useState<number | null>(null)
   const [scrollOffset, setScrollOffset] = useState({ox: false, oy: false})
   const [baseColumn, setBaseColumn] = useState<VirtualItem | null>(null)
   const [baseRow, setBaseRow] = useState<VirtualItem | null>(null)
   const [pos, setPos] = useState<[VirtualItem, VirtualItem] | null>(null)
-  const [range, setRange] = useState<Range | null>(null)
+  const [selection, setSelection] = useState<SelectionRange | null>(null)
   const parentRef = useRef<HTMLDivElement>(null)
+  const borderWidth = useMemo(() => props.borderWidth ?? 1, [props.borderWidth])
 
   const startPointerSelection = useCallback((mouseDown: { current: boolean }) => {
     pointerCleanupRef.current?.()
     mouseDown.current = true
+    setSelecting(true)
 
     const cleanup = () => {
       mouseDown.current = false
@@ -88,6 +95,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
       window.removeEventListener('pointercancel', cleanup, false)
       document.removeEventListener('pointerleave', cleanup, false)
       if (pointerCleanupRef.current === cleanup) pointerCleanupRef.current = null
+      setSelecting(false)
     }
 
     pointerCleanupRef.current = cleanup
@@ -96,9 +104,19 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
     document.addEventListener('pointerleave', cleanup, false)
   }, [])
 
-  const startPointerResize = useCallback((resizing: { current: boolean }, cursor: string, pointermove: (e: PointerEvent) => void) => {
+  const startPointerResize = useCallback((
+    resizing: { current: boolean },
+    cursor: string,
+    index: number,
+    pointermove: (e: PointerEvent) => void
+  ) => {
     pointerCleanupRef.current?.()
     resizing.current = true
+    if(cursor === 'col-resize') {
+      setResizeColumnIndex(index)
+    } else {
+      setResizeRowIndex(index)
+    }
     const defaultCursor = document.documentElement.style.cursor
     document.documentElement.style.cursor = cursor
 
@@ -111,6 +129,11 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
       window.removeEventListener('blur', cleanup, false)
       document.removeEventListener('pointerleave', cleanup, false)
       if (pointerCleanupRef.current === cleanup) pointerCleanupRef.current = null
+      if(cursor === 'col-resize') {
+        setResizeColumnIndex(null)
+      } else {
+        setResizeRowIndex(null)
+      }
     }
 
     pointerCleanupRef.current = cleanup
@@ -120,10 +143,6 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
     window.addEventListener('blur', cleanup, false)
     document.addEventListener('pointerleave', cleanup, false)
   }, [])
-
-  useEffect(() => () => pointerCleanupRef.current?.(), [])
-
-  const borderWidth = useMemo(() => props.borderWidth ?? 1, [props.borderWidth])
 
   const getScrollElement = useCallback(() => {
     return parentRef.current
@@ -144,10 +163,10 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
     estimateSize: estimateColumnSize,
   })
 
-  const drawRange = (from: [VirtualItem, VirtualItem] | null, to: [VirtualItem, VirtualItem] | null) => {
+  const updateSelection = (from: [VirtualItem, VirtualItem] | null, to: [VirtualItem, VirtualItem] | null) => {
     if (!cellMouseDown.current) return
     if (!from || !to) {
-      setRange(null)
+      setSelection(null)
       return
     }
     const [sx, sy] = from
@@ -172,7 +191,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
     const ty = Math.min(sy.index, ey.index)
     const bx = Math.max(sx.index, ex.index)
     const by = Math.max(sy.index, ey.index)
-    setRange({x, y, w, h, tx, ty, bx, by})
+    setSelection({x, y, w, h, tx, ty, bx, by})
   }
 
   const handleColumnResize = (e: React.PointerEvent<HTMLDivElement>, col: VirtualItem) => {
@@ -180,7 +199,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
     if (!resizeRange) return
 
     setPos(null)
-    setRange(null)
+    setSelection(null)
     e.stopPropagation()
     const sx = e.clientX
     const startSize = col.size - borderWidth
@@ -190,7 +209,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
       columnVirtualizer.resizeItem(col.index, nextSize + borderWidth)
     }
 
-    startPointerResize(columnResizing, 'col-resize', pointermove)
+    startPointerResize(columnResizing, 'col-resize', col.index, pointermove)
   }
 
   const handleRowResize = (e: React.PointerEvent<HTMLDivElement>, row: VirtualItem) => {
@@ -199,7 +218,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
 
     e.stopPropagation()
     setPos(null)
-    setRange(null)
+    setSelection(null)
     const sy = e.clientY
     const startSize = row.size - borderWidth
 
@@ -208,7 +227,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
       rowVirtualizer.resizeItem(row.index, nextSize + borderWidth)
     }
 
-    startPointerResize(rowResizing, 'row-resize', pointermove)
+    startPointerResize(rowResizing, 'row-resize', row.index, pointermove)
   }
 
   const rows = rowVirtualizer.getVirtualItems()
@@ -219,14 +238,14 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
   useImperativeHandle(ref, () => {
     return {
       el: parentRef.current,
-      range: range,
+      selection,
       row: rowVirtualizer,
       column: columnVirtualizer,
       active() {
         return document.activeElement === parentRef.current
       },
       clearSelection() {
-        setRange(null)
+        setSelection(null)
         setPos(null)
       }
     }
@@ -248,9 +267,16 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
     }
   }, [scrollOffset])
 
+  useEffect(() => {
+    setPos(null)
+    setSelection(null)
+  }, [props.row, props.column])
+
+  useEffect(() => () => pointerCleanupRef.current?.(), [])
+
   return (
     <div className={cls('data-grid', props.className)}>
-      <div className={cls('data-grid-container', actived && 'actived')} ref={parentRef}
+      <div className={cls('data-grid-container', actived && 'actived', selecting && 'selecting')} ref={parentRef}
         tabIndex={0}
         style={{'--data-grid-border-width': `${borderWidth}px`} as React.CSSProperties}
         onFocus={() => {
@@ -260,48 +286,49 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
           setActived(false)
         }}
       >
-        <div className="data-grid-corner"
+        {!props.hideRowHeader && (<div className="data-grid-corner"
           onClick={() => {
-            setRange({x: 0, y: 0, w: width, h: height, tx: 0, ty: 0, bx: columnVirtualizer.options.count - 1, by: rowVirtualizer.options.count - 1})
+            setSelection({x: 0, y: 0, w: width, h: height, tx: 0, ty: 0, bx: columnVirtualizer.options.count - 1, by: rowVirtualizer.options.count - 1})
           }}
           >
           {props.corner}
-        </div>
-        <div className={cls('data-grid-column-header', scrollOffset.oy && 'has-scroll')}>
+        </div>)}
+        {!props.hideColumnHeader && (<div className={cls('data-grid-column-header', scrollOffset.oy && 'has-scroll')}>
           {columns.map((column) => (
             <Fragment key={column.key}>
               <div
                 key={column.key}
                 className={cls(
                   'data-grid-cell head',
-                  range && inRange(range.tx, range.bx, column.index) && 'in-range',
-                  range && inRange(range.tx, range.bx, column.index) && range.ty === 0 && range.by === rowVirtualizer.options.count - 1 && 'full-selected'
+                  selection && inSelection(selection.tx, selection.bx, column.index) && 'in-selection',
+                  selection && inSelection(selection.tx, selection.bx, column.index) && selection.ty === 0 && selection.by === rowVirtualizer.options.count - 1 && 'full-selected'
                 )}
                 style={{
                   width: column.size - borderWidth + 'px',
                   transform: `translateX(${column.start + borderWidth}px)`,
                 }}
-                onPointerDown={() => {
+                onPointerDown={e => {
+                  if (e.button !== 0) return
                   setPos(null)
                   setBaseColumn(column)
                   setBaseRow(null)
-                  setRange({x: column.start, y: 0, w: column.size, h: height, tx: column.index, ty: 0, bx: column.index, by: rowVirtualizer.options.count - 1})
+                  setSelection({x: column.start, y: 0, w: column.size, h: height, tx: column.index, ty: 0, bx: column.index, by: rowVirtualizer.options.count - 1})
                   startPointerSelection(columnMouseDown)
                 }}
                 onPointerEnter={() => {
                   if (columnResizing.current) return
                   if (!columnMouseDown.current) return
-                  if (!range) return
+                  if (!selection) return
                   if (!baseColumn) return
                   if (column.index > baseColumn.index) {
-                    setRange(v => {
+                    setSelection(v => {
                       if (!v) return v
                       v.w = column.end - baseColumn.start
                       v.bx = column.index
                       return {...v}
                     })
                   } else {
-                    setRange(v => {
+                    setSelection(v => {
                       if (!v) return v
                       v.w = baseColumn.end - column.start
                       v.x = column.start
@@ -315,39 +342,45 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
                   {props.render(0, column.index, 'column')}
               </div>
               {props.columnResize && (
-                <div key={'resizer' + column.key} className="column-resizer"
+                <div key={'resizer' + column.key} className={cls('column-resizer', resizeColumnIndex === column.index && 'resizing')}
                   style={{
                     transform: `translateX(${column.end + (borderWidth / 2 - RESIZER_WIDTH / 2)}px)`,
+                    display: selecting ? 'none' : '',
                   }}
-                  onPointerDown={(e) => handleColumnResize(e, column)}
+                  onPointerDown={e => {
+                    if(e.button !== 0) return
+                    handleColumnResize(e, column)
+                  }}
                 ></div>
               )}
             </Fragment>
           ))}
-          <div key={'data-grid-helper'} className="data-grid-helper">
-            {range && (
-              <div className="data-grid-selection"
-              style={{
-                transform: `translate(${range.x}px, 0px)`,
-                width: `${range.w+borderWidth}px`,
-                height: `100%`,
-                borderWidth: `${borderWidth || 1}px`,
-              }}
-              ></div>
-            )}
-            {range && (
-              <div className="data-grid-selection bg"
-              style={{
-                transform: `translate(${range.x}px, 0px)`,
-                width: `${range.w+borderWidth}px`,
-                height: `100%`,
-              }}
-              ></div>
-            )}
-          </div>
-        </div>
-        <div className={cls('data-grid-row-header', scrollOffset.ox && 'has-scroll')}>
-          {rows.length && <div className="row-header-width-hold">{props.render(rows[rows.length - 1].index, 0, 'row')}</div>}
+          {columns.length > 0 && (
+            <div key={'data-grid-helper'} className="data-grid-helper">
+              {selection && (
+                <div className="data-grid-selection"
+                style={{
+                  transform: `translate(${selection.x}px, 0px)`,
+                  width: `${selection.w+borderWidth}px`,
+                  height: `100%`,
+                  borderWidth: `${borderWidth || 1}px`,
+                }}
+                ></div>
+              )}
+              {selection && (
+                <div className="data-grid-selection bg"
+                style={{
+                  transform: `translate(${selection.x}px, 0px)`,
+                  width: `${selection.w+borderWidth}px`,
+                  height: `100%`,
+                }}
+                ></div>
+              )}
+            </div>
+          )}
+        </div>)}
+        {!props.hideRowHeader && (<div className={cls('data-grid-row-header', scrollOffset.ox && 'has-scroll')}>
+          {rows.length > 0 && <div className="row-header-width-hold">{props.render(rows[rows.length - 1].index, 0, 'row')}</div>}
           {rows.map((row) => (
             <Fragment key={row.key}>
               <div
@@ -357,34 +390,35 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
                   ((row.index + 1) % 2) === 0 ? 'even' : 'odd',
                   (row.index + 1) % 6 === 3 && 'nth6n-3',
                   (row.index + 1) % 6 === 0 && 'nth6n-6',
-                  range && inRange(range.ty, range.by, row.index) && 'in-range',
-                  range && inRange(range.ty, range.by, row.index) && range.tx === 0 && range.bx === columnVirtualizer.options.count - 1 && 'full-selected'
+                  selection && inSelection(selection.ty, selection.by, row.index) && 'in-selection',
+                  selection && inSelection(selection.ty, selection.by, row.index) && selection.tx === 0 && selection.bx === columnVirtualizer.options.count - 1 && 'full-selected'
                 )}
                 style={{
                   height: row.size - borderWidth + 'px',
                   transform: `translateY(${row.start + borderWidth}px)`,
                 }}
-                onPointerDown={() => {
+                onPointerDown={e => {
+                  if (e.button !== 0) return
                   setPos(null)
                   setBaseColumn(null)
                   setBaseRow(row)
-                  setRange({x: 0, y: row.start, w: width, h: row.size, tx: 0, ty: row.index, bx: columnVirtualizer.options.count - 1, by: row.index})
+                  setSelection({x: 0, y: row.start, w: width, h: row.size, tx: 0, ty: row.index, bx: columnVirtualizer.options.count - 1, by: row.index})
                   startPointerSelection(rowMouseDown)
                 }}
                 onPointerEnter={() => {
                   if (rowResizing.current) return
                   if (!rowMouseDown.current) return
-                  if (!range) return
+                  if (!selection) return
                   if (!baseRow) return
                   if (row.index > baseRow.index) {
-                    setRange(v => {
+                    setSelection(v => {
                       if (!v) return v
                       v.h = row.end - baseRow.start
                       v.by = row.index
                       return {...v}
                     })
                   } else {
-                    setRange(v => {
+                    setSelection(v => {
                       if (!v) return v
                       v.h = baseRow.end - row.start
                       v.y = row.start
@@ -398,37 +432,43 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
                 {props.render(row.index, 0, 'row')}
               </div>
               {props.rowResize && (
-                <div key={'resizer' + row.key} className="row-resizer"
+                <div key={'resizer' + row.key} className={cls('row-resizer', resizeRowIndex === row.index && 'resizing')}
                   style={{
                     transform: `translateY(${row.end + (borderWidth / 2 - RESIZER_WIDTH / 2)}px)`,
+                    display: selecting ? 'none' : '',
                   }}
-                  onPointerDown={(e) => handleRowResize(e, row)}
+                  onPointerDown={e => {
+                    if(e.button !== 0) return
+                    handleRowResize(e, row)
+                  }}
                 ></div>
               )}
             </Fragment>
           ))}
-          <div className="data-grid-helper">
-            {range && (
-              <div className="data-grid-selection"
-              style={{
-                transform: `translate(0px, ${range.y}px)`,
-                width: `100%`,
-                height: `${range.h+borderWidth}px`,
-                borderWidth: `${borderWidth || 1}px`,
-              }}
-              ></div>
-            )}
-            {range && (
-              <div className="data-grid-selection bg"
-              style={{
-                transform: `translate(0px, ${range.y}px)`,
-                width: `100%`,
-                height: `${range.h+borderWidth}px`,
-              }}
-              ></div>
-            )}
-          </div>
-        </div>
+          {rows.length > 0 && (
+            <div className="data-grid-helper">
+              {selection && (
+                <div className="data-grid-selection"
+                style={{
+                  transform: `translate(0px, ${selection.y}px)`,
+                  width: `100%`,
+                  height: `${selection.h+borderWidth}px`,
+                  borderWidth: `${borderWidth || 1}px`,
+                }}
+                ></div>
+              )}
+              {selection && (
+                <div className="data-grid-selection bg"
+                style={{
+                  transform: `translate(0px, ${selection.y}px)`,
+                  width: `100%`,
+                  height: `${selection.h+borderWidth}px`,
+                }}
+                ></div>
+              )}
+            </div>
+          )}
+        </div>)}
         <div className="data-grid-body"
           style={{
             width: `${width + borderWidth}px`,
@@ -436,22 +476,22 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
           }}
         >
           <div className="data-grid-helper">
-            {range && (
+            {selection && (
               <div className="data-grid-selection"
               style={{
-                transform: `translate(${range.x}px, ${range.y}px)`,
-                width: `${range.w+borderWidth}px`,
-                height: `${range.h+borderWidth}px`,
+                transform: `translate(${selection.x}px, ${selection.y}px)`,
+                width: `${selection.w+borderWidth}px`,
+                height: `${selection.h+borderWidth}px`,
                 borderWidth: `${borderWidth || 1}px`,
               }}
               ></div>
             )}
-            {range && (
+            {selection && (
               <div className="data-grid-selection bg"
               style={{
-                transform: `translate(${range.x}px, ${range.y}px)`,
-                width: `${range.w+borderWidth}px`,
-                height: `${range.h+borderWidth}px`,
+                transform: `translate(${selection.x}px, ${selection.y}px)`,
+                width: `${selection.w+borderWidth}px`,
+                height: `${selection.h+borderWidth}px`,
               }}
               ></div>
             )}
@@ -489,23 +529,25 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<Instance>) =>
                     (row.index + 1) % 6 === 3 && 'nth6n-3',
                     (row.index + 1) % 6 === 0 && 'nth6n-6',
                     (pos && column.index === pos[0].index) && 'current-column',
+                    selection && inSelection(selection.tx, selection.bx, column.index) && 'in-selection',
                   )}
                   style={{
                     width: column.size - borderWidth + 'px',
                     height: row.size - borderWidth + 'px',
                     transform: `translateX(${column.start+borderWidth}px)`,
                   }}
-                  onPointerDown={(e) => {
+                  onPointerDown={e => {
+                    if (e.button !== 0) return
                     startPointerSelection(cellMouseDown)
                     setPos([column, row])
                     if (e.shiftKey && pos) {
-                      drawRange(pos, [column, row])
+                      updateSelection(pos, [column, row])
                     } else {
-                      drawRange([column, row], [column, row])
+                      updateSelection([column, row], [column, row])
                     }
                   }}
                   onPointerEnter={() => {
-                    drawRange(pos, [column, row])
+                    updateSelection(pos, [column, row])
                   }}
                   >{props.render(row.index, column.index, 'cell')}</div>
               ))}

@@ -56,6 +56,8 @@ and height of its container.
 | `column` | `BaseVirtualizerOptions` | Yes | - | Column virtualizer options. `count` is required; the fallback estimated column width is `79px`. |
 | `rowResize` | `boolean \| ((index: number) => [number, number])` | No | `false` | Enables row resizing, optionally with per-row minimum and maximum heights. |
 | `columnResize` | `boolean \| ((index: number) => [number, number])` | No | `false` | Enables column resizing, optionally with per-column minimum and maximum widths. |
+| `hideRowHeader` | `boolean` | No | `false` | Hides the row header and the top-left corner cell. |
+| `hideColumnHeader` | `boolean` | No | `false` | Hides the column header. |
 | `render` | `(row: number, column: number, type: 'cell' \| 'row' \| 'column') => ReactNode` | Yes | - | Renders column headers, row headers, and body cells. |
 | `corner` | `ReactNode` | No | - | Content rendered in the top-left corner header. |
 | `borderWidth` | `number` | No | `1` | Grid line width in pixels. |
@@ -88,26 +90,28 @@ Sorting, formatting, editing, context menus, copy behavior, and CSV export are
 intentionally kept outside of the grid. Use the `render` callback and the
 imperative ref to compose those behaviors in your application.
 
-### Ref Instance
+### DataGrid Instance
 
 ```tsx
-const gridRef = useRef<Instance>(null)
+import { type DataGridInstance } from '@lanyue/react-data-grid'
+const gridRef = useRef<DataGridInstance>(null)
 
 gridRef.current?.row.scrollToIndex(1000)
 gridRef.current?.column.scrollToIndex(20)
+const selected = gridRef.current?.selection
 gridRef.current?.clearSelection()
 ```
 
 | Field | Description |
 | --- | --- |
 | `el` | The scrollable grid element. |
-| `range` | Current selected range, or `null`. |
+| `selection` | Current selected range (`SelectionRange`), or `null`. |
 | `row` | Row `Virtualizer` instance from `@tanstack/react-virtual`. |
 | `column` | Column `Virtualizer` instance from `@tanstack/react-virtual`. |
 | `active()` | Returns whether the grid currently has focus. |
 | `clearSelection()` | Clears the current cell selection. |
 
-### `Range`
+### `SelectionRange`
 
 | Field | Description |
 | --- | --- |

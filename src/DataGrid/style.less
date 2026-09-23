@@ -1,6 +1,6 @@
 .data-grid {
   .data-grid-container {
-    background-color: var(--dg-border-color, #F3F4F6);
+    background-color: var(--data-grid-border-color, #F3F4F6);
     position: relative;
     display: grid;
     grid-template-columns: [data-grid-row-headers] max-content [data-grid-columns] max-content;
@@ -31,7 +31,7 @@
     height: 25px;
     overflow: hidden;
     z-index: 11;
-    background-color: var(--dg-border-color, #F3F4F6);
+    background-color: var(--data-grid-border-color, #F3F4F6);
     box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
     transition: box-shadow ease 0.3s;
 
@@ -49,7 +49,7 @@
     height: 100%;
     overflow: hidden;
     z-index: 10;
-    background-color: var(--dg-border-color, #F3F4F6);
+    background-color: var(--data-grid-border-color, #F3F4F6);
     box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
     transition: box-shadow ease 0.3s;
     padding: 0 2px;
@@ -112,13 +112,9 @@
       background-color: var(--data-grid-header-cell-bg, #f6f9fc);
     }
 
-    // &.in-range {
-    //   background-color: var(--data-grid-header-cell-in-range-bg, #f2f2f2);
-    // }
-
     &.full-selected {
-      background-color: var(--data-grid-cell-full-selected-border, #1A42E8);
-      box-shadow: 0 0 0 var(--data-grid-border-width, 1px) var(--data-grid-cell-full-selected-border, #1A42E8);
+      background-color: var(--data-grid-cell-full-selected-bg, #1A42E8);
+      box-shadow: 0 0 0 var(--data-grid-border-width, 1px) var(--data-grid-cell-full-selected-bg, #1A42E8);
       color: #e2f0ff;
     }
   }
@@ -152,7 +148,7 @@
     z-index: 20;
     cursor: col-resize;
 
-    &:hover {
+    &:hover,&.resizing {
       opacity: 1;
     }
 
@@ -187,7 +183,7 @@
     z-index: 20;
     cursor: row-resize;
 
-    &:hover {
+    &:hover,&.resizing {
       opacity: 1;
     }
 

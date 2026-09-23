@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { DataGrid, type Instance } from './DataGrid'
+import { DataGrid, type DataGridInstance } from './DataGrid'
 import { CaretSortIcon, ChevronRightIcon, Cross2Icon, EnterFullScreenIcon, ExitFullScreenIcon, TriangleDownIcon, TriangleUpIcon } from '@radix-ui/react-icons'
 import { downloadCsv } from './exportCsv'
 
@@ -886,7 +886,7 @@ const VolumeChart = (props: {
 }
 
 export default function FakerDataGridDemo() {
-  const ref = useRef<Instance>(null)
+  const ref = useRef<DataGridInstance>(null)
   const [fullScreen, setFullScreen] = useState(false)
   const [rowCount, setRowCount] = useState(5000)
   const [columnCount, setColumnCount] = useState(20)
@@ -906,15 +906,15 @@ export default function FakerDataGridDemo() {
 
   useEffect(() => {
     const handleCopy = (e: ClipboardEvent) => {
-      if (!ref.current?.range) return
+      if (!ref.current?.selection) return
       if (!ref.current.active()) return
 
       e.preventDefault()
 
       const lines: string[] = []
-      for (let rowIndex = ref.current.range.ty; rowIndex <= ref.current.range.by; rowIndex++) {
+      for (let rowIndex = ref.current.selection.ty; rowIndex <= ref.current.selection.by; rowIndex++) {
         const cells: string[] = []
-        for (let columnIndex = ref.current.range.tx; columnIndex <= ref.current.range.bx; columnIndex++) {
+        for (let columnIndex = ref.current.selection.tx; columnIndex <= ref.current.selection.bx; columnIndex++) {
           cells.push(cellToText(getCellText(rows, rowIndex, columnIndex)))
         }
         lines.push(cells.join('\t'))

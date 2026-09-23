@@ -10,10 +10,10 @@ function App() {
         <p className="text-sm text-gray-500 mt-3">The high-performance virtual list is implemented based on <a className="text-blue-600" href="https://tanstack.com/virtual" target="_blank">@tanstack/react-virtual</a></p>
       </div>
       <div className="mt-10">
-        <Demo2 />
+        <Demo1 />
       </div>
       <div className="mt-10">
-        <Demo1 />
+        <Demo2 />
       </div>
       <div className="markdown-docs mt-30">
       </div>
