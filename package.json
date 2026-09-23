@@ -1,7 +1,7 @@
 {
   "name": "@lanyue/react-data-grid",
   "description": "A high-performance React data grid component.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -11,7 +11,9 @@
     "data-grid",
     "grid-table"
   ],
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "github": "https://github.com/mengdu/react-data-grid",
   "repository": {
     "type": "git",
