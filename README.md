@@ -62,6 +62,7 @@ and height of its container.
 | `corner` | `ReactNode` | No | - | Content rendered in the top-left corner header. |
 | `borderWidth` | `number` | No | `1` | Grid line width in pixels. |
 | `extra` | `ReactNode` | No | - | Extra content rendered inside the outer grid element, after the scrollable grid container. |
+| `onSelection` | `(selection: SelectionRange \| null) => void` | No | - | Called with the final range when selection ends, or `null` when the selection is cleared. |
 
 `row` and `column` accept most options from
 `ReactVirtualizerOptions<HTMLDivElement, Element>`. The grid owns
@@ -121,6 +122,7 @@ gridRef.current?.clearSelection()
 | `bx`, `by` | Bottom-right selected cell indexes. |
 
 `tx` and `bx` are column indexes. `ty` and `by` are row indexes.
+`onSelection` is not called for intermediate ranges while the pointer is still pressed.
 
 ## Development
 

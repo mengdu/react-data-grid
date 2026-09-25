@@ -1,5 +1,5 @@
 import { useVirtualizer, Virtualizer, type VirtualItem, type PartialKeys, type ReactVirtualizerOptions } from '@tanstack/react-virtual'
-import { useRef, useState, useCallback, type ReactNode, useEffect, type Ref, useImperativeHandle, forwardRef, useMemo, Fragment } from 'react'
+import { useRef, useState, useCallback, type ReactNode, useEffect, type Ref, useImperativeHandle, forwardRef, useMemo, Fragment, type SetStateAction } from 'react'
 
 function cls(...arr: any[]) {
   return arr.filter(Boolean).join(' ')
@@ -22,6 +22,7 @@ export interface SelectionRange {
 
 export type RenderHandler = (row: number, column: number, type: 'cell' | 'row' | 'column') => ReactNode
 export type ResizeConfig = boolean | ((index: number) => [number, number])
+export type SelectionHandler = (selection: SelectionRange | null) => void
 
 export type BaseVirtualizerOptions = Omit<PartialKeys<ReactVirtualizerOptions<HTMLDivElement, Element>, "observeElementRect" | "observeElementOffset" | "scrollToFn">, 'getScrollElement' | 'estimateSize'> & {
   estimateSize?: (index: number) => number
@@ -39,6 +40,7 @@ export interface DataGridProps {
   corner?: ReactNode
   borderWidth?: number
   extra?: ReactNode
+  onSelection?: SelectionHandler
 }
 
 export interface DataGridInstance {
@@ -81,8 +83,23 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
   const [baseRow, setBaseRow] = useState<VirtualItem | null>(null)
   const [pos, setPos] = useState<[VirtualItem, VirtualItem] | null>(null)
   const [selection, setSelection] = useState<SelectionRange | null>(null)
+  const selectionRef = useRef<SelectionRange | null>(null)
+  const onSelectionRef = useRef(props.onSelection)
+  onSelectionRef.current = props.onSelection
   const parentRef = useRef<HTMLDivElement>(null)
   const borderWidth = useMemo(() => props.borderWidth ?? 1, [props.borderWidth])
+
+  const updateSelectionState = useCallback((next: SetStateAction<SelectionRange | null>) => {
+    const value = typeof next === 'function' ? next(selectionRef.current) : next
+    selectionRef.current = value
+    setSelection(value)
+  }, [])
+
+  const clearSelection = useCallback(() => {
+    updateSelectionState(null)
+    setPos(null)
+    onSelectionRef.current?.(null)
+  }, [updateSelectionState])
 
   const startPointerSelection = useCallback((mouseDown: { current: boolean }) => {
     pointerCleanupRef.current?.()
@@ -91,17 +108,22 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
 
     const cleanup = () => {
       mouseDown.current = false
-      window.removeEventListener('pointerup', cleanup, false)
-      window.removeEventListener('pointercancel', cleanup, false)
-      document.removeEventListener('pointerleave', cleanup, false)
+      window.removeEventListener('pointerup', finish, false)
+      window.removeEventListener('pointercancel', finish, false)
+      document.removeEventListener('pointerleave', finish, false)
       if (pointerCleanupRef.current === cleanup) pointerCleanupRef.current = null
       setSelecting(false)
     }
 
+    const finish = () => {
+      cleanup()
+      onSelectionRef.current?.(selectionRef.current)
+    }
+
     pointerCleanupRef.current = cleanup
-    window.addEventListener('pointerup', cleanup, false)
-    window.addEventListener('pointercancel', cleanup, false)
-    document.addEventListener('pointerleave', cleanup, false)
+    window.addEventListener('pointerup', finish, false)
+    window.addEventListener('pointercancel', finish, false)
+    document.addEventListener('pointerleave', finish, false)
   }, [])
 
   const startPointerResize = useCallback((
@@ -166,7 +188,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
   const updateSelection = (from: [VirtualItem, VirtualItem] | null, to: [VirtualItem, VirtualItem] | null) => {
     if (!cellMouseDown.current) return
     if (!from || !to) {
-      setSelection(null)
+      updateSelectionState(null)
       return
     }
     const [sx, sy] = from
@@ -191,7 +213,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
     const ty = Math.min(sy.index, ey.index)
     const bx = Math.max(sx.index, ex.index)
     const by = Math.max(sy.index, ey.index)
-    setSelection({x, y, w, h, tx, ty, bx, by})
+    updateSelectionState({x, y, w, h, tx, ty, bx, by})
   }
 
   const handleColumnResize = (e: React.PointerEvent<HTMLDivElement>, col: VirtualItem) => {
@@ -199,7 +221,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
     if (!resizeRange) return
 
     setPos(null)
-    setSelection(null)
+    if (selectionRef.current) clearSelection()
     e.stopPropagation()
     const sx = e.clientX
     const startSize = col.size - borderWidth
@@ -218,7 +240,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
 
     e.stopPropagation()
     setPos(null)
-    setSelection(null)
+    if (selectionRef.current) clearSelection()
     const sy = e.clientY
     const startSize = row.size - borderWidth
 
@@ -245,8 +267,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
         return document.activeElement === parentRef.current
       },
       clearSelection() {
-        setSelection(null)
-        setPos(null)
+        clearSelection()
       }
     }
   })
@@ -268,9 +289,8 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
   }, [scrollOffset])
 
   useEffect(() => {
-    setPos(null)
-    setSelection(null)
-  }, [props.row, props.column])
+    if (selectionRef.current) clearSelection()
+  }, [props.row, props.column, clearSelection])
 
   useEffect(() => () => pointerCleanupRef.current?.(), [])
 
@@ -288,7 +308,9 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
       >
         {!props.hideRowHeader && (<div className="data-grid-corner"
           onClick={() => {
-            setSelection({x: 0, y: 0, w: width, h: height, tx: 0, ty: 0, bx: columnVirtualizer.options.count - 1, by: rowVirtualizer.options.count - 1})
+            const nextSelection = {x: 0, y: 0, w: width, h: height, tx: 0, ty: 0, bx: columnVirtualizer.options.count - 1, by: rowVirtualizer.options.count - 1}
+            updateSelectionState(nextSelection)
+            onSelectionRef.current?.(nextSelection)
           }}
           >
           {props.corner}
@@ -312,7 +334,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
                   setPos(null)
                   setBaseColumn(column)
                   setBaseRow(null)
-                  setSelection({x: column.start, y: 0, w: column.size, h: height, tx: column.index, ty: 0, bx: column.index, by: rowVirtualizer.options.count - 1})
+                  updateSelectionState({x: column.start, y: 0, w: column.size, h: height, tx: column.index, ty: 0, bx: column.index, by: rowVirtualizer.options.count - 1})
                   startPointerSelection(columnMouseDown)
                 }}
                 onPointerEnter={() => {
@@ -321,14 +343,14 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
                   if (!selection) return
                   if (!baseColumn) return
                   if (column.index > baseColumn.index) {
-                    setSelection(v => {
+                    updateSelectionState(v => {
                       if (!v) return v
                       v.w = column.end - baseColumn.start
                       v.bx = column.index
                       return {...v}
                     })
                   } else {
-                    setSelection(v => {
+                    updateSelectionState(v => {
                       if (!v) return v
                       v.w = baseColumn.end - column.start
                       v.x = column.start
@@ -402,7 +424,7 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
                   setPos(null)
                   setBaseColumn(null)
                   setBaseRow(row)
-                  setSelection({x: 0, y: row.start, w: width, h: row.size, tx: 0, ty: row.index, bx: columnVirtualizer.options.count - 1, by: row.index})
+                  updateSelectionState({x: 0, y: row.start, w: width, h: row.size, tx: 0, ty: row.index, bx: columnVirtualizer.options.count - 1, by: row.index})
                   startPointerSelection(rowMouseDown)
                 }}
                 onPointerEnter={() => {
@@ -411,14 +433,14 @@ export const DataGrid = forwardRef((props: DataGridProps, ref: Ref<DataGridInsta
                   if (!selection) return
                   if (!baseRow) return
                   if (row.index > baseRow.index) {
-                    setSelection(v => {
+                    updateSelectionState(v => {
                       if (!v) return v
                       v.h = row.end - baseRow.start
                       v.by = row.index
                       return {...v}
                     })
                   } else {
-                    setSelection(v => {
+                    updateSelectionState(v => {
                       if (!v) return v
                       v.h = baseRow.end - row.start
                       v.y = row.start

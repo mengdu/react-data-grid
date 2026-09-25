@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { DataGrid, type DataGridInstance } from './DataGrid'
+import { DataGrid, type DataGridInstance, type SelectionRange } from './DataGrid'
 import { EnterFullScreenIcon, ExitFullScreenIcon } from '@radix-ui/react-icons'
 import { downloadCsv } from './exportCsv'
 
@@ -19,6 +19,7 @@ export default function GridVirtualizerFixed() {
   const [rows, setRows] = useState(10000)
   const [columns, setColumns] = useState(100)
   const [borderWidth, setBorderWidth] = useState(1)
+  const [selection, setSelection] = useState<SelectionRange>()
 
   const { cols, data } = useMemo(() => {
     const cols = new Array(columns).fill(0).map((_, i) => genColumn(i + 1))
@@ -90,6 +91,7 @@ export default function GridVirtualizerFixed() {
           <p className="text-xs text-slate-500">Sheet example.</p>
         </div>
         <div className="flex-1 flex flex-wrap justify-center items-center gap-2">
+          <div>{selection ? `[${cols[selection.tx]}${selection.ty + 1}, ${cols[selection.bx]}${selection.by + 1}]` : ''}</div>
           <label>
             <select
               className="select"
@@ -193,6 +195,10 @@ export default function GridVirtualizerFixed() {
         columnResize
         rowResize
         borderWidth={borderWidth}
+        onSelection={r => {
+          console.log('onSelection', r)
+          setSelection(r || undefined)
+        }}
         render={(r, c, type) => {
           if (type === 'column') return cols[c]
           if (type === 'row') return r + 1
