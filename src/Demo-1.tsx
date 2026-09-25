@@ -78,8 +78,8 @@ export default function GridVirtualizerFixed() {
 
   const exportCsv = () => {
     downloadCsv(`sheet-${rows}x${columns}.csv`, [
-      ['', ...cols],
-      ...data.map((row, index) => [index + 1, ...row]),
+      [...cols],
+      ...data.map((row) => [...row]),
     ])
   }
 
